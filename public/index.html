@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planejador BNCC - Gerador de Planos de Aula</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .prose {
+            max-width: 100%;
+        }
+        .prose h1 {
+            font-size: 1.875rem;
+            font-weight: bold;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            color: #1f2937;
+        }
+        .prose h2 {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-top: 1.25rem;
+            margin-bottom: 0.75rem;
+            color: #374151;
+        }
+        .prose ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin: 1rem 0;
+        }
+        .prose li {
+            margin: 0.5rem 0;
+        }
+        .prose strong {
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">Planejador BNCC</h1>
+            <p class="text-gray-600">Gerador de planos de aula alinhados à Base Nacional Comum Curricular</p>
+        </header>
+
+        <main>
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6">Dados da Aula</h2>
+                <form id="plannerForm">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="tema" class="block text-gray-700 mb-2">Tema da Aula *</label>
+                            <input type="text" id="tema" name="tema" required 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                placeholder="Ex: Adição e Subtração de Números Inteiros">
+                        </div>
+                        <div>
+                            <label for="disciplina" class="block text-gray-700 mb-2">Componente Curricular *</label>
+                            <select id="disciplina" name="disciplina" required 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="" disabled selected>Selecione uma disciplina</option>
+                                <option value="Matemática">Matemática</option>
+                                <option value="Língua Portuguesa">Língua Portuguesa</option>
+                                <option value="Ciências">Ciências</option>
+                                <option value="História">História</option>
+                                <option value="Geografia">Geografia</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="ano" class="block text-gray-700 mb-2">Ano/Série *</label>
+                            <select id="ano" name="ano" required 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="" disabled selected>Selecione o ano</option>
+                                <option value="1º ano do Ensino Fundamental">1º ano do Ensino Fundamental</option>
+                                <option value="2º ano do Ensino Fundamental">2º ano do Ensino Fundamental</option>
+                                <option value="3º ano do Ensino Fundamental">3º ano do Ensino Fundamental</option>
+                                <option value="4º ano do Ensino Fundamental">4º ano do Ensino Fundamental</option>
+                                <option value="5º ano do Ensino Fundamental">5º ano do Ensino Fundamental</option>
+                                <option value="6º ano do Ensino Fundamental">6º ano do Ensino Fundamental</option>
+                                <option value="7º ano do Ensino Fundamental">7º ano do Ensino Fundamental</option>
+                                <option value="8º ano do Ensino Fundamental">8º ano do Ensino Fundamental</option>
+                                <option value="9º ano do Ensino Fundamental">9º ano do Ensino Fundamental</option>
+                                <option value="1º ano do Ensino Médio">1º ano do Ensino Médio</option>
+                                <option value="2º ano do Ensino Médio">2º ano do Ensino Médio</option>
+                                <option value="3º ano do Ensino Médio">3º ano do Ensino Médio</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="duracao" class="block text-gray-700 mb-2">Duração da Aula *</label>
+                            <select id="duracao" name="duracao" required 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="" disabled selected>Selecione a duração</option>
+                                <option value="50min">50 minutos</option>
+                                <option value="100min">100 minutos</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-8 text-center">
+                        <button type="submit" id="generateBtn" 
+                            class="px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300 shadow-md inline-flex items-center justify-center">
+                            <i class="fas fa-robot mr-2"></i> Gerar Plano com IA
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-gray-800">Plano de Aula Gerado</h2>
+                    <div id="actionButtons" class="hidden">
+                        <button id="copyBtn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition duration-300 mr-2">
+                            <i class="fas fa-copy mr-1"></i> Copiar Texto
+                        </button>
+                        <button id="pdfBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-300">
+                            <i class="fas fa-file-pdf mr-1"></i> Baixar PDF
+                        </button>
+                    </div>
+                </div>
+                <div id="loading" class="hidden text-center py-12">
+                    <div class="spinner mx-auto mb-4"></div>
+                    <p class="text-gray-600">Gerando seu plano de aula com a IA... Isso pode levar alguns segundos.</p>
+                </div>
+                <div id="result" class="prose max-w-none"></div>
+                <div id="error" class="hidden text-center py-8">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Erro ao gerar plano</h3>
+                    <p class="text-gray-600 mb-4" id="errorMessage"></p>
+                    <button onclick="location.reload()" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300">
+                        Tentar novamente
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <footer class="mt-12 text-center text-gray-500 text-sm">
+            <p>© 2023 Planejador BNCC. Este projeto é um MVP e utiliza a API do Google Gemini para gerar planos de aula alinhados à BNCC.</p>
+            <p class="mt-2">Para uso educacional. A precisão dos códigos BNCC deve ser verificada por um profissional.</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('plannerForm');
+            const generateBtn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            const error = document.getElementById('error');
+            const errorMessage = document.getElementById('errorMessage');
+            const actionButtons = document.getElementById('actionButtons');
+            const copyBtn = document.getElementById('copyBtn');
+            const pdfBtn = document.getElementById('pdfBtn');
+
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Obter dados do formulário
+                const tema = document.getElementById('tema').value;
+                const disciplina = document.getElementById('disciplina').value;
+                const ano = document.getElementById('ano').value;
+                const duracao = document.getElementById('duracao').value;
+
+                // Validar se todos os campos estão preenchidos
+                if (!tema || !disciplina || !ano || !duracao) {
+                    alert('Por favor, preencha todos os campos obrigatórios.');
+                    return;
+                }
+
+                // Mostrar estado de carregamento
+                loading.classList.remove('hidden');
+                result.innerHTML = '';
+                error.classList.add('hidden');
+                actionButtons.classList.add('hidden');
+                generateBtn.disabled = true;
+                generateBtn.innerHTML = '<div class="spinner mr-2"></div> Gerando...';
+
+                try {
+                    // Fazer a requisição para a API
+                    const response = await fetch('/api/generate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ tema, disciplina, ano, duracao }),
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Erro ao gerar plano de aula');
+                    }
+
+                    // Renderizar o markdown
+                    result.innerHTML = marked.parse(data.plano);
+                    
+                    // Mostrar botões de ação
+                    actionButtons.classList.remove('hidden');
+                    
+                } catch (err) {
+                    // Mostrar erro
+                    errorMessage.textContent = err.message;
+                    error.classList.remove('hidden');
+                } finally {
+                    // Restaurar estado
+                    loading.classList.add('hidden');
+                    generateBtn.disabled = false;
+                    generateBtn.innerHTML = '<i class="fas fa-robot mr-2"></i> Gerar Plano com IA';
+                }
+            });
+
+            // Copiar o conteúdo gerado
+            copyBtn.addEventListener('click', function() {
+                const textToCopy = result.innerText;
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    // Feedback visual
+                    const originalText = copyBtn.innerHTML;
+                    copyBtn.innerHTML = '<i class="fas fa-check mr-1"></i> Copiado!';
+                    setTimeout(() => {
+                        copyBtn.innerHTML = originalText;
+                    }, 2000);
+                });
+            });
+
+            // Gerar PDF
+            pdfBtn.addEventListener('click', function() {
+                const element = document.getElementById('result');
+                const options = {
+                    margin:       1,
+                    filename:     `Plano de Aula - ${document.getElementById('tema').value.substring(0, 50)}.pdf`,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2 },
+                    jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+                };
+                html2pdf().set(options).from(element).save();
+            });
+        });
+    </script>
+</body>
+</html>
