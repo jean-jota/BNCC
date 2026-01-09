@@ -1,9 +1,6 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Inicializa a API do Google Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-// Contexto BNCC Hardcoded - Diretrizes principais
+// --- 1. CONTEXTO BNCC (Mantivemos o seu, que está excelente) ---
 const BNCC_CONTEXT = {
   "Matemática": {
     "Ensino Fundamental - Anos Iniciais (1º-5º)": {
@@ -86,40 +83,45 @@ const BNCC_CONTEXT = {
 };
 
 module.exports = async (req, res) => {
-  // Configura CORS para permitir requisições do frontend
+  // --- 2. CONFIGURAÇÃO DE SEGURANÇA E CORS ---
+  res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
 
-  // Responde a preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // Apenas aceita requisições POST
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Método não permitido' });
-  }
-
   try {
-    const { tema, disciplina, ano, duracao } = req.body;
+    const { tema, disciplina, ano, duracao } = req.body || {};
 
-    // Validação dos dados recebidos
-    if (!tema || !disciplina || !ano || !duracao) {
-      return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
+    if (!tema) {
+      return res.status(400).json({ error: 'O tema da aula é obrigatório.' });
     }
 
-    // Configuração do modelo Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // --- 3. SISTEMA DE FALLBACK DE MODELOS (O SEGREDO DO SUCESSO) ---
+    // Se o primeiro falhar (404), ele tenta o próximo automaticamente.
+    const modelsToTry = [
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-001",
+        "gemini-1.5-pro",
+        "gemini-pro" // Este é o mais antigo e estável, nosso "pneu estepe"
+    ];
 
-    // Construção do prompt com contexto BNCC
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    
+    // Preparação do Prompt com seu Contexto BNCC
     const bnccContext = BNCC_CONTEXT[disciplina] ? 
       `Contexto BNCC para ${disciplina}:\n` + 
       JSON.stringify(BNCC_CONTEXT[disciplina], null, 2) + 
       `\n\nO ano informado é: ${ano}. Escolha o código BNCC apropriado.\n` : 
       `Disciplina: ${disciplina}. Use códigos BNCC apropriados para o ${ano}.\n`;
 
-    const prompt = `${bnccContext}
+    const fullPrompt = `${bnccContext}
 
 Role: Você é um Especialista Pedagógico Brasileiro e Coordenador da BNCC.
 Task: Crie um plano de aula técnico para um diário de classe oficial.
@@ -130,39 +132,56 @@ Dados da Aula:
 - Ano/Série: ${ano}
 - Duração: ${duracao}
 
-Instruções de Segurança (Anti-Alucinação):
+Instruções de Segurança:
 1. Consulte sua base de conhecimento interna sobre a BNCC.
-2. Você deve citar o código alfanumérico CORRETO (ex: EF05MA03). Se houver dúvida, explique a competência sem inventar código.
-3. O código deve ser compatível com o Ano/Série informado.
+2. Cite o código alfanumérico CORRETO.
+3. Use Markdown.
 
-Estrutura de Saída Obrigatória (Use Markdown):
+Estrutura de Saída Obrigatória:
 # Plano de Aula: ${tema}
-**Código BNCC:** [Insira o Código Aqui]
-**Competência Específica:** [Descrição da competência vinculada ao código]
+**Código BNCC:** [Código]
+**Competência:** [Descrição]
 
-## 1. Objetivos de Aprendizagem
-- [Lista de objetivos claros]
+## 1. Objetivos
+- [Lista]
 
-## 2. Metodologia (Passo a Passo)
-- **Introdução (15% do tempo):** [Como engajar os alunos]
-- **Desenvolvimento (70% do tempo):** [Atividade prática e explanação]
-- **Conclusão (15% do tempo):** [Verificação de aprendizado]
+## 2. Metodologia
+- [Passo a passo]
 
-## 3. Recursos Necessários
-- [Lista de materiais]
+## 3. Avaliação
+- [Método]`;
 
-## 4. Avaliação
-- [Como o professor avaliará se o aluno aprendeu]`;
+    let textResponse = null;
+    let lastError = null;
 
-    // Chama a API do Gemini
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const plano = response.text();
+    // Loop de Tentativa
+    for (const modelName of modelsToTry) {
+        try {
+            console.log(`Tentando gerar com modelo: ${modelName}...`);
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const result = await model.generateContent(fullPrompt);
+            const response = await result.response;
+            textResponse = response.text();
+            
+            // Se funcionou, para o loop e segue a vida
+            break; 
+        } catch (error) {
+            console.warn(`Falha no modelo ${modelName}:`, error.message);
+            lastError = error;
+            // Continua para o próximo da lista...
+        }
+    }
 
-    // Retorna o plano gerado
-    res.status(200).json({ plano });
+    if (!textResponse) {
+        throw new Error(`Todos os modelos falharam. Erro final: ${lastError?.message}`);
+    }
+
+    // Retorna para o frontend (padronizado como 'result' ou 'plano')
+    // Enviamos nas duas chaves para garantir que seu frontend entenda
+    res.status(200).json({ result: textResponse, plano: textResponse });
+
   } catch (error) {
-    console.error('Erro ao gerar plano de aula:', error);
-    res.status(500).json({ error: 'Erro interno do servidor. Tente novamente mais tarde.' });
+    console.error('Erro fatal:', error);
+    res.status(500).json({ error: 'Erro interno ao processar plano.' });
   }
 };
